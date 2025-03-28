@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: api
+    ports:
+      - '8000:8000'
+    volumes:
+      - '..:/app'
+    environment:
+      - PYTHONUNBUFFERED=1
+      - AWS_ACCESS_KEY_ID=mlflow
+      - AWS_SECRET_ACCESS_KEY=password
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - PYTHONPATH=/app:/app/..
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password
+      - MINIO_BUCKET_NAME=nfe-files
+    depends_on:
+      - minio
+
+  streamlit:
+    build:
+      context: ..  # Volta um diretório porque o docker-compose está na pasta docker/
+      dockerfile: docker/Dockerfile.streamlit  # Caminho relativo ao contexto
+    container_name: streamlit
+    ports:
+      - '8501:8501'
+    volumes:
+      - '..:/app'  # Volta um diretório para acessar a raiz do projeto
+    environment:
+      - PYTHONUNBUFFERED=1
+      - AWS_ACCESS_KEY_ID=mlflow
+      - AWS_SECRET_ACCESS_KEY=password
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - PYTHONPATH=/app:/app/..
+      - API_URL=http://api:8000/process_invoice
+    depends_on:
+      - api
+
+  minio:
+    image: 'minio/minio:latest'
+    container_name: minio
+    ports:
+      - '9005:9000'
+      - '8905:8900'
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    volumes:
+      - 'mlflow-minio:/data/minio'
+    command: 'minio server /data/minio --console-address ":8900"'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      retries: 3
+      timeout: 5s
+
+volumes:
+  mlflow-minio:

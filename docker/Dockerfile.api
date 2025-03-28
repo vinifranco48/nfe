@@ -1,0 +1,70 @@
+FROM ubuntu:22.04
+
+# Evitar interação durante a instalação de pacotes
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar Python e dependências
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3-pip \
+    wget \
+    gnupg \
+    unzip \
+    xvfb \
+    curl \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    xdg-utils \
+    # Adicionado
+    libpq-dev \
+    # Adicionado
+    python3-dev \
+    # Adicionado
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+# Instalar Chrome
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get update \
+    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+    && rm google-chrome-stable_current_amd64.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiar e instalar requirements
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+ENV PYTHONPATH=/app
+ENV DISPLAY=:99
+
+EXPOSE 8000
+
+# Baixar e instalar ChromeDriver compatível
+RUN CHROME_VERSION=$(google-chrome --version | awk '{ print $3 }' | cut -d. -f1) \
+    && CHROMEDRIVER_URL="https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$(google-chrome --version | awk '{ print $3 }')/linux64/chromedriver-linux64.zip" \
+    && wget -q $CHROMEDRIVER_URL \
+    && unzip chromedriver-linux64.zip \
+    && mv chromedriver-linux64/chromedriver /usr/local/bin/ \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm -rf chromedriver-linux64.zip chromedriver-linux64
+
+# Iniciar Xvfb e a aplicação
+CMD Xvfb :99 -screen 0 1280x1024x24 -ac +extension GLX +render -noreset & \
+    uvicorn app:app --host 0.0.0.0 --port 8000

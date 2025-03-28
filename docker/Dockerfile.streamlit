@@ -1,0 +1,22 @@
+FROM python:3.11
+
+# Define o diretório de trabalho
+WORKDIR /app
+
+# Copia o arquivo de dependências para o contêiner
+COPY requirements.txt .
+
+# Instala as dependências
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia todo o código do projeto para o contêiner
+COPY . .
+
+# Define o PYTHONPATH para incluir o diretório raiz do projeto
+ENV PYTHONPATH=/app
+
+# Expõe a porta do Streamlit 
+EXPOSE 8501
+
+# Comando para rodar o Streamlit (ajuste o caminho se necessário)
+CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
